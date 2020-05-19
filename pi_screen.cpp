@@ -1,31 +1,43 @@
-#include <iostream>
-#include <cstring>  //needed for memset etc.... could do this the c++ way, but I like the buffers fast for now
-#include <string>
-#include <cmath>
-#include <cstdio>
-
 #include "pi_screen.h"
 
 
 pi_screen::pi_screen()
 {
     this->setBoundaries( gDefaultScreenSizeX, gDefaultScreenSizeY, gDefaultPaddingX, gDefaultPaddingY );
-    defaultValue = 'O';
-    this->createBuffers();
+    this->initScreen();
 }
 
 pi_screen::pi_screen( int scrSizeX, int scrSizeY )
 {
     this->setBoundaries( scrSizeX, scrSizeY, gDefaultPaddingX, gDefaultPaddingY );
-    defaultValue = 'O';
-    this->createBuffers();
+    this->initScreen();
 }
 
 pi_screen::pi_screen( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
 {
     this->setBoundaries( scrSizeX, scrSizeY, scrPadX, scrPadY );
+    this->initScreen();
+}
+
+void pi_screen::initScreen()
+{
+    screen = new char[totalPixelCount];
+    overlay = new char[totalPixelCount];
+    dataBuffer = new float[numDataPoints];
     defaultValue = 'O';
-    this->createBuffers();
+    screenThread = new std::thread( &pi_screen::screenLoop, this );
+    running = true;
+}
+
+pi_screen::~pi_screen()
+{
+
+    delete screen;
+    delete overlay;
+    delete dataBuffer;
+    screenThread->detach();
+    delete screenThread;
+    std::cout << "pi_screen::~pi_screen()" << std::endl;
 }
 
 void pi_screen::setBoundaries( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
@@ -37,18 +49,20 @@ void pi_screen::setBoundaries( int scrSizeX, int scrSizeY, int scrPadX, int scrP
     screenDataAreaX = screenSizeX - gDefaultPaddingX;
     screenDataAreaY = screenSizeY - gDefaultPaddingY;
     totalPixelCount = screenSizeX*screenSizeY;
+
+    numDataPoints = screenDataAreaX;
 }
 
-void pi_screen::createBuffers()
+void pi_screen::screenLoop()
 {
-    screen = new char[totalPixelCount];
-    overlay = new char[totalPixelCount];
-    dataBuffer = new float[screenDataAreaX];
-}
+    std::chrono::milliseconds timespan(200);
 
-pi_screen::~pi_screen()
-{
-    delete screen;
+    while(running)
+    {
+        std::this_thread::sleep_for(timespan);  //sleep for 100ms
+        this->prepareScreen();
+        this->drawScreen();
+    }
 }
 
 //takes some arbitrary data and bins it into the data buffer.... maybe... (where to trigger)
@@ -57,10 +71,48 @@ void pi_screen::binIntoDataBuffer( float *values, int numValues )
 
 }
 
+void pi_screen::rndTestData( float start, float stop )
+{
+    float range = stop-start;
+
+    for( int i = 0; i < numDataPoints; i++)
+    {
+        dataBuffer[i] = (std::rand()/(float)RAND_MAX)*range + start;
+    }
+}
+
+void pi_screen::sinTestData( float start, float stop, float freq )
+{
+    float range = stop-start;
+    float mid = (stop+start)/2;
+    std::srand(std::time(NULL));
+    float offset = (std::rand()/(float)RAND_MAX)*10;
+
+    for( int i = 0; i < numDataPoints; i++)
+    {
+        dataBuffer[i] = std::sin( i*freq + offset)*range/2.0 + mid;
+    }
+}
+
+
+void pi_screen::setYAxis( float mid, float halfrange )
+{
+    this->y0 = mid;
+    this->yRange2 = halfrange;
+    this->prepareOverlay();
+}
+
+void pi_screen::setXAxis( float mid, float halfrange )
+{
+    this->x0 = mid;
+    this->xRange2 = halfrange;
+    this->prepareOverlay();
+}
+
 void pi_screen::prepareScreen() //set screen to all blank, then draw data from *dataBuffer, then overlay form *overlay
 {
     memset(screen, ' ', totalPixelCount );
-    //this->drawData();
+    this->drawData();
     this->drawOverlay();
 }
 
@@ -77,8 +129,8 @@ void pi_screen::drawScreen()
     {
         for( int x = 0; x < screenSizeX; x++ )
         {
-            //std::cout << screen[x * screenSizeY + y];
-            printf( "%c", screen[x * screenSizeY + y]);
+            std::cout << screen[x * screenSizeY + y];
+            //printf( "%c", screen[x * screenSizeY + y]);
         }
         printf("\n");
         //std::cout << std::endl;
@@ -95,15 +147,23 @@ void pi_screen::prepareOverlay()
 
     memset( overlay, ' ', totalPixelCount);
 
-    std::string mid = std::to_string(y0);
-    std::string top = std::to_string(ymax);
-    std::string bot = std::to_string(ymin);
+    std::string mid = std::to_string(std::abs(y0));
+    std::string top = std::to_string(std::abs(ymax));
+    std::string bot = std::to_string(std::abs(ymin));
 
-    for( int i = 0; i < 3; i++ )
+    if( ymin < 0 )
+        this->setOverlayPixel( 0, screenPaddingY, '-' );
+    if( y0 < 0 )
+        this->setOverlayPixel( 0, midpos, '-' );
+    if( ymax < 0 )
+        this->setOverlayPixel( 0, toppos, '-' );
+
+
+    for( int i = 0; i < 4; i++ )
     {
-        this->setOverlayPixel( i, screenPaddingY, bot.at(i) );
-        this->setOverlayPixel( i, midpos, mid.at(i) );
-        this->setOverlayPixel( i, toppos, top.at(i) );
+        this->setOverlayPixel( i+1, screenPaddingY, bot.at(i) );
+        this->setOverlayPixel( i+1, midpos, mid.at(i) );
+        this->setOverlayPixel( i+1, toppos, top.at(i) );
     }
 
     //y-axis
@@ -165,8 +225,6 @@ void pi_screen::drawData()
 		}
 	}
 }
-
-
 
 void pi_screen::setOverlayPixel( int x, int y, char value)
 {

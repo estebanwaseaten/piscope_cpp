@@ -1,9 +1,3 @@
-#include "piscope.h"    //includes some very standard libs and globals
-
-#include <iostream>
-#include <chrono>       //libs needed for this class
-#include <thread>       //libs needed for this class
-
 #include "pi_input.h"
 
 
@@ -23,9 +17,10 @@ void pi_input::inputLoop()
 
                 break;
             default:
+                std::cout << "\33[2K\r";
                 break;
         }
-        std::cout << "\33[2K\r";
+
     }
 
 }
@@ -35,13 +30,17 @@ bool pi_input::isRunning()
     return this->running;
 }
 
-pi_input::pi_input()
+pi_input::pi_input( pi_controller *ctrlr )
 {
+    myController = ctrlr;
+    inputThread = new std::thread( &pi_input::inputLoop, this );
     this->running = true;
     std::cout << "pi_input::pi_input()" << std::endl;
 }
 
 pi_input::~pi_input()
 {
+    inputThread->detach();
+    delete inputThread;
     std::cout << "pi_input::~pi_input()" << std::endl;
 }

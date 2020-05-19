@@ -11,6 +11,7 @@
 #include "pi_screen.h"
 #include "pi_input.h"
 #include "pi_timer.h"
+#include "pi_controller.h"
 
 
 int main( void )
@@ -30,20 +31,21 @@ int main( void )
     auto in_time_t = std::chrono::system_clock::to_time_t(currentTime);
     std::cout << "started: " << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X") << std::endl;
 
-    pi_input    *mainInput = new pi_input();    //this guy should generate the thread
+    pi_controller *mainController = new pi_controller();
+
+    mainController->mainLoop();
+
+    /*pi_input    *mainInput = new pi_input();    //this guy should generate the thread
     pi_screen   *mainScreen = new pi_screen();
-
-    std::thread inputThread(&pi_input::inputLoop, mainInput);     //could use async instead of thread??
-
-
-
     pi_timer *myTimer = new pi_timer();
-    pi_timer *screenTimer = new pi_timer();
     long counter {0};
     myTimer->start();
-    screenTimer->start();
 
-    mainScreen->prepareOverlay();   //only needs to be updated whenever the overlay changes...
+    mainScreen->rndTestData( -1, 1 );
+    mainScreen->sinTestData( -1, 1, 0.05 );
+    mainScreen->setYAxis( 0, 1.2 );
+    //mainScreen->prepareOverlay();   //only needs to be updated whenever the overlay changes...
+
 
     while( mainInput->isRunning() )
     {
@@ -52,23 +54,21 @@ int main( void )
 
         //2. analysis
 
-        //3. draw screen
-        if( screenTimer->currentDuration() > 0.05 )     //this increases speed from 0.03 kHz to 81 kHz
-        {
-            mainScreen->prepareScreen();
-            mainScreen->drawScreen();
-            screenTimer->reset();
-        }
-
+        /*if( screenTimer->currentDuration() > 0.05 )     //this increases speed from 0.03 kHz to 81 kHz
+                                                        //putting screen in their own thread -->16251.5kHz = 16 MHz
+                                                        // other threads completely off: 62577.6kHz = 62MHz
     }
 
     myTimer->setCounter( counter );
     myTimer->stop();
     myTimer->printReport();
 
-    inputThread.join();
+    //inputThread.join();
     delete mainInput;
-    delete myTimer;
+    delete mainScreen;
+    delete myTimer;*/
+
+    delete mainController;
 
     tcsetattr( 0, TCSANOW, &old_tio);
     return 0;

@@ -1,9 +1,9 @@
 CC=gcc
 CXX=g++
-CXXFLAGS=-std=c++11 -lpthread -fmax-errors=3
+CXXFLAGS=-std=c++17 -lpthread -fmax-errors=3
 LDFLAGS= -lpthread
 
-SRCS=piscope.cpp pi_spi_adc.cpp pi_screen.cpp pi_input.cpp pi_timer.cpp
+SRCS=piscope.cpp pi_spi_adc.cpp pi_screen.cpp pi_input.cpp pi_timer.cpp pi_controller.cpp
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: piscope

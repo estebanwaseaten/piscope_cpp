@@ -1,9 +1,4 @@
-#include <chrono>
-#include <iostream>
-
 #include "pi_timer.h"
-
-
 
 pi_timer::pi_timer()
 {

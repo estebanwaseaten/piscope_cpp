@@ -1,6 +1,17 @@
 #ifndef pi_screen_h
 #define pi_screen_h
 
+#include <iostream>
+#include <chrono>
+#include <thread>
+#include <cstring>  //needed for memset etc.... could do this the c++ way, but I like the buffers fast for now
+#include <string>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>  //rand
+#include <time.h>       /* time */
+
+
 class pi_screen     //could subclass screen to data_screen
 {
 public:
@@ -10,27 +21,33 @@ public:
 
     ~pi_screen();
 
+    void screenLoop();
+
     void clearScreen();     //empties the screen
     void prepareScreen();   //prepares screen --> calls
     void drawScreen();      //prints the actual *screen buffer to the console via cout
 
     void prepareOverlay();      //fills *overlay Buffer
+    void setXAxis( float mid, float halfrange );
+    void setYAxis( float mid, float halfrange );
     void drawOverlay();         //copies *overlay buffer onto *screen buffer
 
     void binIntoDataBuffer( float *values, int numValues );     //the screens data buffer has exactly the amount of Data points needed
     void prepareData( float *sourceBuffer, int sourceBufferLength );         //fills *dataBuffer
     void drawData();            //writes data to *screen buffer according to data in *dataBuffer
 
-    void setPixel( int x, int y, char value);
+    void setPixel( int x, int y, char value );
     void setPixel( int x, int y );
-    void setOverlayPixel( int x, int y, char value);
+    void setOverlayPixel( int x, int y, char value );
+
+    void rndTestData( float start, float stop );
+    void sinTestData( float start, float stop, float freq );
+
 
 private:
-    //char 	*screen;     //screen buffer
-    //char 	*overlay;     //screen buffer
-    char 	*screen;     //screen buffer
-    char 	*overlay;     //screen buffer
-    float 	*dataBuffer;     //screen buffer     should we maintain this or just the pointer to it??
+    char 	*screen;         //2D screen buffer
+    char 	*overlay;        //2D overlay buffer
+    float 	*dataBuffer;     //1D data buffer
     int     numDataPoints;
 
     char    defaultValue;
@@ -48,7 +65,10 @@ private:
     float   x0;
     float   xRange2;
 
-    void createBuffers();
+    std::thread *screenThread;
+    bool        running;
+
+    void initScreen();
     void setBoundaries( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY );
 };
 

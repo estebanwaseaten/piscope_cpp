@@ -1,4 +1,8 @@
+#ifndef pi_timer_h
+#define pi_timer_h
 
+#include <chrono>
+#include <iostream>
 
 class pi_timer
 {
@@ -28,3 +32,5 @@ private:
     bool running;
 
 };
+
+#endif
