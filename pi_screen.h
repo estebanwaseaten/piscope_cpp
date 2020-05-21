@@ -43,6 +43,9 @@ public:
     void rndTestData( float start, float stop );
     void sinTestData( float start, float stop, float freq );
 
+    float   *getDataBuffer();
+    int     getDataBufferLength();
+
 
 private:
     char 	*screen;         //2D screen buffer

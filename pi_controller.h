@@ -1,9 +1,11 @@
 #ifndef pi_controller_h
 #define pi_controller_h
 
+#include <functional>
 #include "pi_input.h"
 #include "pi_screen.h"
 #include "pi_timer.h"
+#include "pi_spi_adc.h"
 
 class pi_input;
 class pi_screen;
@@ -20,6 +22,7 @@ public:
 private:
     pi_input    *mainInput;
     pi_screen   *mainScreen;
+    pi_spi_adc  *SPInterface;
 
     pi_timer    *mainTimer;
     long        counter{0};

@@ -65,6 +65,16 @@ void pi_screen::screenLoop()
     }
 }
 
+float *pi_screen::getDataBuffer()
+{
+    return dataBuffer;
+}
+
+int pi_screen::getDataBufferLength()
+{
+    return numDataPoints;
+}
+
 //takes some arbitrary data and bins it into the data buffer.... maybe... (where to trigger)
 void pi_screen::binIntoDataBuffer( float *values, int numValues )
 {

@@ -3,25 +3,34 @@
 
 pi_spi_adc::pi_spi_adc()
 {
-    this->dataBufferSize = cDefaultDataBufferSize;
-    dataBuffer = new float[dataBufferSize];
-    timeBuffer = new float[dataBufferSize];
+    //this->dataBufferSize = cDefaultDataBufferSize;
+    //dataBuffer = new float[dataBufferSize];
+    //timeBuffer = new float[dataBufferSize];
+    this->setupSPI();
+    dataTimer = new pi_timer();
+    acquistionTimer = new pi_timer();
 }
 
 pi_spi_adc::pi_spi_adc( int dataBufferSize )
 {
-    this->dataBufferSize = dataBufferSize;
-    dataBuffer = new float[dataBufferSize];
-    timeBuffer = new float[dataBufferSize];
+    //this->dataBufferSize = dataBufferSize;
+    //dataBuffer = new float[dataBufferSize];
+    //timeBuffer = new float[dataBufferSize];
+    this->setupSPI();
+    dataTimer = new pi_timer();
+    acquistionTimer = new pi_timer();
 }
 
 pi_spi_adc::~pi_spi_adc()
 {
-    delete dataBuffer;
-    delete timeBuffer;
+    //delete dataBuffer;
+    //delete timeBuffer;
+    //close(spi_device):??????
+    delete dataTimer;
+    delete acquistionTimer;
 }
 
-void pi_spi_adc::mcp3201_setup( void )
+void pi_spi_adc::setupSPI()
 {
 	if( (spiID = open(spi_device, O_RDWR)) < 0 )
 	{
@@ -30,7 +39,7 @@ void pi_spi_adc::mcp3201_setup( void )
 	}
 
 	//set mode:
-	if( ioctl(spiID, SPI_IOC_WR_MODE, &spi_mode) < 0 )
+	if( ioctl(spiID, SPI_IOC_WR_MODE, &this->spi_mode) < 0 )
 	{
 		std::cout << "ERROR setting device mode" << std::endl;
 		exit(1);
@@ -70,8 +79,34 @@ void pi_spi_adc::mcp3201_setup( void )
 	std::cout << "Speed..........: " << spi_speed <<" Hz (" << spi_speed/1000 << "kHz)\n" << std::endl;
 }
 
+float pi_spi_adc::readValue()
+{
+    return (this->*readValueFctn)();
+}
 
-uint16_t pi_spi_adc::mcp3201_readvalue( int fd )
+float pi_spi_adc::readValues( float *dataBuffer, float *timeBuffer, int bufferLength )
+{
+    acquistionTimer->start();
+    (this->*readValuesFctn)( dataBuffer, timeBuffer, bufferLength );
+    acquistionTimer->stop();
+    return acquistionTimer->totalDuration();
+}
+
+float pi_spi_adc::mcp3201_readvalues( float *dataBuffer, float *timeBuffer, int bufferLength )
+{
+    acquistionTimer->start();
+    dataTimer->start();
+    for(int i = 0; i< bufferLength; i++ )
+    {
+        dataBuffer[i] = this->mcp3201_readvalue();
+        if( timeBuffer )
+            timeBuffer[i] = dataTimer->currentDuration();
+    }
+    acquistionTimer->stop();
+    return acquistionTimer->totalDuration();
+}
+
+float pi_spi_adc::mcp3201_readvalue()
 {
 	uint8_t	*byteBuffer;//, *blaBuffer;
 
@@ -80,7 +115,7 @@ uint16_t pi_spi_adc::mcp3201_readvalue( int fd )
 
 	int length = 2;		//reads two bytes
 
-	byteBuffer = (*uint8_t)malloc(sizeof(__u8) * length);
+	byteBuffer = (uint8_t*)malloc(sizeof(__u8) * length);
 //	blaBuffer = malloc( sizeof(__u8) * length);
 
 	struct spi_ioc_transfer xfer;	//from spidef.h - contains a "message"
@@ -93,14 +128,14 @@ uint16_t pi_spi_adc::mcp3201_readvalue( int fd )
 	xfer.speed_hz = spi_speed;	//50kHz for now -- need opamp buffer to increase
 	xfer.bits_per_word = 8;
 
-	int status = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
+	int status = ioctl(spiID, SPI_IOC_MESSAGE(1), &xfer);
 
 	if( status < 0 )
 	{
 			//explain_ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
 			printf("error - status: %d\n", status);
 			free(byteBuffer);
-			free(blaBuffer);
+			//free(blaBuffer);
 			return 0;
 	}
 
