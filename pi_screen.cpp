@@ -21,12 +21,23 @@ pi_screen::pi_screen( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
 
 void pi_screen::initScreen()
 {
-    screen = new char[totalPixelCount];
+    screen = new char[totalPixelCount + screenSizeY + 1];   // add one column for linefeed chars + 1 for c termination
+    blankScreen = new char[totalPixelCount + screenSizeY + 1];
+    memset(blankScreen, ' ', totalPixelCount + screenSizeY + 1);
+    for( int i = 0; i < screenSizeY; i++ )
+    {
+        blankScreen[screenSizeX + i*(screenSizeX+1)] = '\n'; //linefeed char for c string
+    }
+    blankScreen[totalPixelCount + screenSizeY] ='\0'; //termination char for c string
+
+    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1 );
+
     overlay = new char[totalPixelCount];
     dataBuffer = new float[numDataPoints];
+    dataInputBuffer = new float[numDataPoints];
     defaultValue = 'O';
-    screenThread = new std::thread( &pi_screen::screenLoop, this );
-    running = true;
+    screenThread = NULL;
+    std::cout << "initScreen()\n";
 }
 
 pi_screen::~pi_screen()
@@ -35,9 +46,19 @@ pi_screen::~pi_screen()
     delete screen;
     delete overlay;
     delete dataBuffer;
-    screenThread->detach();
-    delete screenThread;
+    if( screenThread )
+    {
+        screenThread->detach();
+        delete screenThread;
+    }
     std::cout << "pi_screen::~pi_screen()" << std::endl;
+}
+
+void pi_screen::start()
+{
+    screenThread = new std::thread( &pi_screen::screenLoop, this );
+    running = true;
+    std::cout << "startScreen()\n";
 }
 
 void pi_screen::setBoundaries( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
@@ -55,7 +76,7 @@ void pi_screen::setBoundaries( int scrSizeX, int scrSizeY, int scrPadX, int scrP
 
 void pi_screen::screenLoop()
 {
-    std::chrono::milliseconds timespan(200);
+    std::chrono::milliseconds timespan(100);
 
     while(running)
     {
@@ -67,7 +88,7 @@ void pi_screen::screenLoop()
 
 float *pi_screen::getDataBuffer()
 {
-    return dataBuffer;
+    return dataInputBuffer;
 }
 
 int pi_screen::getDataBufferLength()
@@ -79,29 +100,42 @@ int pi_screen::getDataBufferLength()
 void pi_screen::binIntoDataBuffer( float *values, int numValues )
 {
 
+
+    memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
 }
 
-void pi_screen::rndTestData( float start, float stop )
+void pi_screen::rndTestData( float start, float stop, int seed )
 {
     float range = stop-start;
+    std::srand(seed);
 
     for( int i = 0; i < numDataPoints; i++)
     {
-        dataBuffer[i] = (std::rand()/(float)RAND_MAX)*range + start;
+        dataInputBuffer[i] = (std::rand()/(float)RAND_MAX)*range + start;
     }
+    memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
 }
 
-void pi_screen::sinTestData( float start, float stop, float freq )
+void pi_screen::swapBuffer()
+{
+    memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
+}
+
+void pi_screen::sinTestData( float start, float stop, float freq, int seed )
 {
     float range = stop-start;
     float mid = (stop+start)/2;
-    std::srand(std::time(NULL));
+    //auto now = std::chrono::steady_clock::now();
+    //auto ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
+    std::srand(seed);
     float offset = (std::rand()/(float)RAND_MAX)*10;
 
     for( int i = 0; i < numDataPoints; i++)
     {
-        dataBuffer[i] = std::sin( i*freq + offset)*range/2.0 + mid;
+        dataInputBuffer[i] = std::sin( i*freq + offset)*range/2.0 + mid;
     }
+    memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
+
 }
 
 
@@ -121,7 +155,9 @@ void pi_screen::setXAxis( float mid, float halfrange )
 
 void pi_screen::prepareScreen() //set screen to all blank, then draw data from *dataBuffer, then overlay form *overlay
 {
-    memset(screen, ' ', totalPixelCount );
+    //memset(screen, ' ', totalPixelCount );
+    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1);
+
     this->drawData();
     this->drawOverlay();
 }
@@ -131,20 +167,23 @@ void pi_screen::clearScreen()
     std::cout << "\033c";
 }
 
-void pi_screen::drawScreen()
+void pi_screen::drawScreen()        //line by line drawing prefers consecutive chars in x directions
 {
     //std::cout << std::endl;
+
     this->clearScreen();
-    for( int y = screenSizeY -1; y >= 0; y-- )
+    //std::cout << screen;
+    printf( "%s", screen );
+    /*for( int y = screenSizeY -1; y >= 0; y-- )
     {
         for( int x = 0; x < screenSizeX; x++ )
         {
-            std::cout << screen[x * screenSizeY + y];
-            //printf( "%c", screen[x * screenSizeY + y]);
+            std::cout << screen[y * screenSizeX + x];
+            //printf( "%c", screen[y * screenSizeX + x]);
         }
-        printf("\n");
+        printf("\n");   //should maybebe faste r`!??  (no flush)
         //std::cout << std::endl;
-    }
+    }*/
 }
 
 void pi_screen::prepareOverlay()
@@ -196,10 +235,10 @@ void pi_screen::drawOverlay()
     {
         for( int x = 0; x < screenSizeX; x++ )
         {
-            pixel = overlay[ x * screenSizeY + y ];
+            pixel = overlay[ y * screenSizeX + x ];
             if( pixel != ' ' )
             {
-                screen[ x * screenSizeY + y ] = pixel;
+                this->setPixel( x, y, pixel);
             }
         }
     }
@@ -239,17 +278,17 @@ void pi_screen::drawData()
 void pi_screen::setOverlayPixel( int x, int y, char value)
 {
     if( (x < screenSizeX) && ( y < screenSizeY) )
-        overlay[ x * screenSizeY + y ] = value;
+        overlay[ y * screenSizeX + x ] = value;
 }
 
 void pi_screen::setPixel( int x, int y, char value)
 {
     if( (x < screenSizeX) && ( y < screenSizeY) )
-		screen[ x * screenSizeY + y ] = value;
+		screen[ (screenSizeY-1-y) * (screenSizeX+1) + x ] = value;
 }
 
 void pi_screen::setPixel( int x, int y )
 {
     if( (x < screenSizeX) && ( y < screenSizeY) )
-		screen[ x * screenSizeY + y ] = defaultValue;
+		screen[ (screenSizeY-1-y) * (screenSizeX+1) + x ] = defaultValue;
 }

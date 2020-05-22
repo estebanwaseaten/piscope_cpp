@@ -1,0 +1,8 @@
+screen buffer can now be drawn by single command du to c-string structure:
+xxxxx\n
+xxxxx\n
+xxxxx\n
+xxxxx\n
+\0
+
+add dataInputBuffer to pi_screen to reduce syncing problem (slowly fill dataInputBuffer and then copy it into dataBuffer in one step)

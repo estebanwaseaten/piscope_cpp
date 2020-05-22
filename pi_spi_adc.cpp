@@ -9,6 +9,7 @@ pi_spi_adc::pi_spi_adc()
     this->setupSPI();
     dataTimer = new pi_timer();
     acquistionTimer = new pi_timer();
+    this->prepCom();
 }
 
 pi_spi_adc::pi_spi_adc( int dataBufferSize )
@@ -19,6 +20,7 @@ pi_spi_adc::pi_spi_adc( int dataBufferSize )
     this->setupSPI();
     dataTimer = new pi_timer();
     acquistionTimer = new pi_timer();
+    this->prepCom();
 }
 
 pi_spi_adc::~pi_spi_adc()
@@ -77,6 +79,18 @@ void pi_spi_adc::setupSPI()
 	std::cout << "spi mode.......: " << spi_mode << std::endl;
 	std::cout << "bits per word..: " << spi_bits << std::endl;
 	std::cout << "Speed..........: " << spi_speed <<" Hz (" << spi_speed/1000 << "kHz)\n" << std::endl;
+
+    byteBuffer = (uint8_t*)malloc(sizeof(__u8) * byteBufferLength);
+}
+
+void pi_spi_adc::prepCom()
+{
+    xfer.tx_buf = (unsigned long)NULL;
+    xfer.rx_buf = (unsigned long)byteBuffer;
+    xfer.len = byteBufferLength;						//is this in bytes?
+    xfer.delay_usecs = spi_delay;
+    xfer.speed_hz = spi_speed;	//50kHz for now -- need opamp buffer to increase
+    xfer.bits_per_word = 8;
 }
 
 float pi_spi_adc::readValue()
@@ -108,33 +122,17 @@ float pi_spi_adc::mcp3201_readvalues( float *dataBuffer, float *timeBuffer, int 
 
 float pi_spi_adc::mcp3201_readvalue()
 {
-	uint8_t	*byteBuffer;//, *blaBuffer;
-
 	uint16_t byteOne;
 	uint8_t byteTwo;
 
-	int length = 2;		//reads two bytes
-
-	byteBuffer = (uint8_t*)malloc(sizeof(__u8) * length);
-//	blaBuffer = malloc( sizeof(__u8) * length);
-
-	struct spi_ioc_transfer xfer;	//from spidef.h - contains a "message"
-	memset(&xfer, 0, sizeof(xfer));
-
-	xfer.tx_buf = (unsigned long)NULL;
-	xfer.rx_buf = (unsigned long)byteBuffer;
-	xfer.len = length;						//is this in bytes?
-	xfer.delay_usecs = spi_delay;
-	xfer.speed_hz = spi_speed;	//50kHz for now -- need opamp buffer to increase
-	xfer.bits_per_word = 8;
-
-	int status = ioctl(spiID, SPI_IOC_MESSAGE(1), &xfer);
+//	memset(&xfer, 0, sizeof(xfer));
+    int status = ioctl(spiID, SPI_IOC_MESSAGE(1), &xfer);
 
 	if( status < 0 )
 	{
 			//explain_ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
 			printf("error - status: %d\n", status);
-			free(byteBuffer);
+			//free(byteBuffer);
 			//free(blaBuffer);
 			return 0;
 	}
@@ -144,9 +142,6 @@ float pi_spi_adc::mcp3201_readvalue()
 	byteTwo = byteBuffer[1] >> 1;
 	byteOne = byteBuffer[0] & 0b00011111;
 	byteOne <<= 7;
-
-	free(byteBuffer);
-//	free(blaBuffer);
 
 	return byteOne + byteTwo;
 }

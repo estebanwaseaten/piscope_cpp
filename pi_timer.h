@@ -27,7 +27,6 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     std::chrono::time_point<std::chrono::steady_clock> stopTime;
 
-
     std::chrono::duration<double> elapsedSeconds;
     bool running;
 

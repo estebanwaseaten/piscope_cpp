@@ -31,42 +31,12 @@ int main( void )
     auto in_time_t = std::chrono::system_clock::to_time_t(currentTime);
     std::cout << "started: " << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X") << std::endl;
 
+    std::chrono::seconds timespan(1);
+    std::this_thread::sleep_for(timespan);
+
     pi_controller *mainController = new pi_controller();
 
     mainController->mainLoop();
-
-    /*pi_input    *mainInput = new pi_input();    //this guy should generate the thread
-    pi_screen   *mainScreen = new pi_screen();
-    pi_timer *myTimer = new pi_timer();
-    long counter {0};
-    myTimer->start();
-
-    mainScreen->rndTestData( -1, 1 );
-    mainScreen->sinTestData( -1, 1, 0.05 );
-    mainScreen->setYAxis( 0, 1.2 );
-    //mainScreen->prepareOverlay();   //only needs to be updated whenever the overlay changes...
-
-
-    while( mainInput->isRunning() )
-    {
-        counter++;
-        //1. daq
-
-        //2. analysis
-
-        /*if( screenTimer->currentDuration() > 0.05 )     //this increases speed from 0.03 kHz to 81 kHz
-                                                        //putting screen in their own thread -->16251.5kHz = 16 MHz
-                                                        // other threads completely off: 62577.6kHz = 62MHz
-    }
-
-    myTimer->setCounter( counter );
-    myTimer->stop();
-    myTimer->printReport();
-
-    //inputThread.join();
-    delete mainInput;
-    delete mainScreen;
-    delete myTimer;*/
 
     delete mainController;
 

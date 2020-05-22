@@ -21,6 +21,7 @@ public:
 
     ~pi_screen();
 
+    void start();
     void screenLoop();
 
     void clearScreen();     //empties the screen
@@ -40,16 +41,19 @@ public:
     void setPixel( int x, int y );
     void setOverlayPixel( int x, int y, char value );
 
-    void rndTestData( float start, float stop );
-    void sinTestData( float start, float stop, float freq );
+    void rndTestData( float start, float stop, int seed );
+    void sinTestData( float start, float stop, float freq, int seed );
 
     float   *getDataBuffer();
     int     getDataBufferLength();
+    void    swapBuffer();
 
 
 private:
     char 	*screen;         //2D screen buffer
+    char 	*blankScreen;    //2D screen buffer   memcopy to erase...
     char 	*overlay;        //2D overlay buffer
+    float   *dataInputBuffer;
     float 	*dataBuffer;     //1D data buffer
     int     numDataPoints;
 

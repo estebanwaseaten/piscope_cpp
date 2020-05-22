@@ -1,6 +1,7 @@
 CC=gcc
 CXX=g++
 CXXFLAGS=-std=c++17 -lpthread -fmax-errors=3
+DUMP=-flto -Ofast 
 LDFLAGS= -lpthread
 
 SRCS=piscope.cpp pi_spi_adc.cpp pi_screen.cpp pi_input.cpp pi_timer.cpp pi_controller.cpp
