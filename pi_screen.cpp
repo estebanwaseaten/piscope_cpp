@@ -22,6 +22,7 @@ pi_screen::pi_screen( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
 void pi_screen::initScreen()
 {
     screen = new char[totalPixelCount + screenSizeY + 1];   // add one column for linefeed chars + 1 for c termination
+    debug = new char[totalPixelCount + screenSizeY + 1];
     blankScreen = new char[totalPixelCount + screenSizeY + 1];
     memset(blankScreen, ' ', totalPixelCount + screenSizeY + 1);
     for( int i = 0; i < screenSizeY; i++ )
@@ -31,9 +32,11 @@ void pi_screen::initScreen()
     blankScreen[totalPixelCount + screenSizeY] ='\0'; //termination char for c string
 
     memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1 );
+    memcpy(debug, blankScreen, totalPixelCount + screenSizeY + 1 );
 
     overlay = new char[totalPixelCount];
-    dataBuffer = new float[numDataPoints];
+
+    dataBuffer = new float[numDataPoints];          //allocated here... others may write into dataInputBuffer...
     dataInputBuffer = new float[numDataPoints];
     defaultValue = 'O';
     screenThread = NULL;
@@ -81,20 +84,86 @@ void pi_screen::screenLoop()
     while(running)
     {
         std::this_thread::sleep_for(timespan);  //sleep for 100ms
-        this->prepareScreen();
-        this->drawScreen();
+        switch (screenMode)
+        {
+            case kScreenModeGraph:
+                this->prepareScreen();      //prepares "screen" buffer
+                this->clearScreen();        //clear terminal
+                this->drawScreen();         // draw screen buffer to terminal
+                break;
+            case kScreenModeList:
+                this->clearScreen();        //clear terminal
+                this->dumpData();           //simply print Data Buffer
+                break;
+            case kScreenModeDebug:
+                this->clearScreen();
+                this->drawDebug();
+                break;
+            default:
+                break;
+        }
+
     }
 }
 
-float *pi_screen::getDataBuffer()
+void pi_screen::addDebug()
 {
-    return dataInputBuffer;
+    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1); //first clear debug
+
+
 }
 
-int pi_screen::getDataBufferLength()
+void pi_screen::prepareScreen() //set screen to all blank, then draw data from *dataBuffer, then overlay form *overlay
 {
-    return numDataPoints;
+    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1);
+
+    this->drawData();
+    this->drawOverlay();
 }
+
+void pi_screen::drawScreen()        //line by line drawing prefers consecutive chars in x directions
+{
+    printf( "%s", screen );
+}
+
+void pi_screen::drawDebug()        //line by line drawing prefers consecutive chars in x directions
+{
+    printf( "%s", debug );
+}
+
+void pi_screen::dumpData()
+{
+
+    for( int i = 0; i < numDataPoints; i++ )
+    {
+        std::cout << dataBuffer[i] << " - ";
+    }
+    std::cout << std::endl;
+}
+
+void pi_screen::clearScreen()
+{
+    std::cout << "\033c";
+}
+
+void pi_screen::setModeGraph()
+{
+    screenMode = kScreenModeGraph;
+}
+
+void pi_screen::setModeList()
+{
+    screenMode = kScreenModeList;
+}
+
+void pi_screen::changeMode()
+{
+    if( screenMode == kScreenModeGraph )
+        screenMode = kScreenModeList;
+    else
+        screenMode = kScreenModeGraph;
+}
+
 
 //takes some arbitrary data and bins it into the data buffer.... maybe... (where to trigger)
 void pi_screen::binIntoDataBuffer( float *values, int numValues )
@@ -103,6 +172,7 @@ void pi_screen::binIntoDataBuffer( float *values, int numValues )
 
     memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
 }
+
 
 void pi_screen::rndTestData( float start, float stop, int seed )
 {
@@ -114,6 +184,16 @@ void pi_screen::rndTestData( float start, float stop, int seed )
         dataInputBuffer[i] = (std::rand()/(float)RAND_MAX)*range + start;
     }
     memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
+}
+
+float *pi_screen::getDataInputBuffer()
+{
+    return dataInputBuffer;
+}
+
+int pi_screen::getDataBufferLength()
+{
+    return numDataPoints;
 }
 
 void pi_screen::swapBuffer()
@@ -153,38 +233,7 @@ void pi_screen::setXAxis( float mid, float halfrange )
     this->prepareOverlay();
 }
 
-void pi_screen::prepareScreen() //set screen to all blank, then draw data from *dataBuffer, then overlay form *overlay
-{
-    //memset(screen, ' ', totalPixelCount );
-    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1);
 
-    this->drawData();
-    this->drawOverlay();
-}
-
-void pi_screen::clearScreen()
-{
-    std::cout << "\033c";
-}
-
-void pi_screen::drawScreen()        //line by line drawing prefers consecutive chars in x directions
-{
-    //std::cout << std::endl;
-
-    this->clearScreen();
-    //std::cout << screen;
-    printf( "%s", screen );
-    /*for( int y = screenSizeY -1; y >= 0; y-- )
-    {
-        for( int x = 0; x < screenSizeX; x++ )
-        {
-            std::cout << screen[y * screenSizeX + x];
-            //printf( "%c", screen[y * screenSizeX + x]);
-        }
-        printf("\n");   //should maybebe faste r`!??  (no flush)
-        //std::cout << std::endl;
-    }*/
-}
 
 void pi_screen::prepareOverlay()
 {
@@ -208,6 +257,7 @@ void pi_screen::prepareOverlay()
         this->setOverlayPixel( 0, toppos, '-' );
 
 
+    // draw y axis description
     for( int i = 0; i < 4; i++ )
     {
         this->setOverlayPixel( i+1, screenPaddingY, bot.at(i) );
@@ -226,6 +276,33 @@ void pi_screen::prepareOverlay()
     {
         this->setOverlayPixel( i, (screenPaddingY-1) , '_');
     }
+
+    //draw notes:
+    for(int i = 0; i < 10; i++ )
+    {
+        //first line:
+        this->setOverlayPixel( i, (screenPaddingY-2), notes[0].at(i));
+        this->setOverlayPixel( i, (screenPaddingY-3), notes[1].at(i));
+        this->setOverlayPixel( i, (screenPaddingY-4), notes[2].at(i));
+    }
+}
+
+void pi_screen::setNote( int index, std::string content )
+{
+    if( index >= 0 && index < 3 )
+    {
+        notes[i] = content;
+    }
+    this->prepareOverlay();
+}
+
+void pi_screen::clearNote( int index )
+{
+    if( index >= 0 && index < 3 )
+    {
+        notes[i] = "";
+    }
+    this->prepareOverlay();
 }
 
 void pi_screen::drawOverlay()
@@ -256,7 +333,7 @@ void pi_screen::drawData()
 	float yMax = y0 + yRange2;
 
 	//calculate mapping:
-	float dy = yRange/(screenSizeY - screenPaddingY);	//debug 28
+	float dy = yRange/(screenSizeY - screenPaddingY);
 
 	// loop through x and set pixel at y:
 	int i = 0;

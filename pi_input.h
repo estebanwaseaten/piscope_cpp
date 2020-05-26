@@ -6,6 +6,8 @@
 #include <thread>
 
 #include "pi_controller.h"
+#include "pi_screen.h"
+
 
 class pi_controller;
 
@@ -18,7 +20,6 @@ public:
     ~pi_input();
 
 private:
-    bool            running;
     std::thread     *inputThread;   //;
     pi_controller   *myController;  //so that we can send messages back to the main controller...
 };

@@ -31,10 +31,10 @@ int main( void )
     auto in_time_t = std::chrono::system_clock::to_time_t(currentTime);
     std::cout << "started: " << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X") << std::endl;
 
-    std::chrono::seconds timespan(1);
-    std::this_thread::sleep_for(timespan);
-
     pi_controller *mainController = new pi_controller();
+
+    std::chrono::seconds timespan(3);
+    std::this_thread::sleep_for(timespan);
 
     mainController->mainLoop();
 

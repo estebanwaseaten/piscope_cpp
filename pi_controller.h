@@ -2,6 +2,7 @@
 #define pi_controller_h
 
 #include <functional>
+#include <time.h>
 #include "pi_input.h"
 #include "pi_screen.h"
 #include "pi_timer.h"
@@ -18,6 +19,7 @@ public:
     ~pi_controller();
 
     void mainLoop();
+    void keyboardInput( char cmd );
 
 private:
     pi_input    *mainInput;
@@ -26,6 +28,7 @@ private:
 
     pi_timer    *mainTimer;
     long        counter{0};
+    bool        running = true;
 };
 
 #endif

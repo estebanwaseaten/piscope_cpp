@@ -6,35 +6,20 @@ void pi_input::inputLoop()
     char cmd;
     std::chrono::milliseconds timespan(100);
 
-    while(running)
+    while(true) //I guess deleting the thread will kill this.... somehow
     {
         std::this_thread::sleep_for(timespan);  //sleep for 100ms
         std::cin >> cmd;
-        switch( cmd )
-        {
-            case 'q':
-                running = false;
 
-                break;
-            default:
-                std::cout << "\33[2K\r";
-                break;
-        }
-
+        myController->keyboardInput( cmd );
     }
 
-}
-
-bool pi_input::isRunning()
-{
-    return this->running;
 }
 
 pi_input::pi_input( pi_controller *ctrlr )
 {
     myController = ctrlr;
     inputThread = new std::thread( &pi_input::inputLoop, this );
-    this->running = true;
     std::cout << "pi_input::pi_input()" << std::endl;
 }
 

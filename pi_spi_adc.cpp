@@ -3,145 +3,148 @@
 
 pi_spi_adc::pi_spi_adc()
 {
-    //this->dataBufferSize = cDefaultDataBufferSize;
-    //dataBuffer = new float[dataBufferSize];
-    //timeBuffer = new float[dataBufferSize];
     this->setupSPI();
+    spi_twoBytesBuffer = new char(sizeof(uint16_t));  //yeah, we allocate 2 bytes
     dataTimer = new pi_timer();
     acquistionTimer = new pi_timer();
-    this->prepCom();
-}
-
-pi_spi_adc::pi_spi_adc( int dataBufferSize )
-{
-    //this->dataBufferSize = dataBufferSize;
-    //dataBuffer = new float[dataBufferSize];
-    //timeBuffer = new float[dataBufferSize];
-    this->setupSPI();
-    dataTimer = new pi_timer();
-    acquistionTimer = new pi_timer();
-    this->prepCom();
 }
 
 pi_spi_adc::~pi_spi_adc()
 {
-    //delete dataBuffer;
-    //delete timeBuffer;
-    //close(spi_device):??????
+    bcm2835_spi_end();
+    bcm2835_close();
     delete dataTimer;
     delete acquistionTimer;
+    delete spi_twoBytesBuffer;
 }
 
-void pi_spi_adc::setupSPI()
+int pi_spi_adc::setupSPI()
 {
-	if( (spiID = open(spi_device, O_RDWR)) < 0 )
-	{
-		std::cout << "ERROR opening device" << std::endl;
-		exit(1);
-	}
-
-	//set mode:
-	if( ioctl(spiID, SPI_IOC_WR_MODE, &this->spi_mode) < 0 )
-	{
-		std::cout << "ERROR setting device mode" << std::endl;
-		exit(1);
-	}
-	if( ioctl(spiID, SPI_IOC_WR_BITS_PER_WORD, &spi_bits) < 0 )
-	{
-		std::cout << "ERROR setting device bits" << std::endl;
-		exit(1);
-	}
-	if( ioctl(spiID, SPI_IOC_WR_MAX_SPEED_HZ, &spi_speed) < 0 )
-	{
-		std::cout << "ERROR setting device speed" << std::endl;
-		exit(1);
-	}
-
-	if( ioctl(spiID, SPI_IOC_RD_MODE, &spi_mode) < 0 )
-	{
-		std::cout << "ERROR reading mode" << std::endl;
-		exit(1);
-	}
-
-	if( ioctl(spiID, SPI_IOC_RD_BITS_PER_WORD, &spi_bits) < 0 )
-	{
-		std::cout << "ERROR reading bits" << std::endl;
-		exit(1);
-	}
-
-	if( ioctl(spiID, SPI_IOC_RD_MAX_SPEED_HZ, &spi_speed) < 0 )
-	{
-		std::cout << "ERROR reading speed" << std::endl;
-		exit(1);
-	}
-
-	std::cout << "spi device.....: " << spi_device << std::endl;
-	std::cout << "spi mode.......: " << spi_mode << std::endl;
-	std::cout << "bits per word..: " << spi_bits << std::endl;
-	std::cout << "Speed..........: " << spi_speed <<" Hz (" << spi_speed/1000 << "kHz)\n" << std::endl;
-
-    byteBuffer = (uint8_t*)malloc(sizeof(__u8) * byteBufferLength);
-}
-
-void pi_spi_adc::prepCom()
-{
-    xfer.tx_buf = (unsigned long)NULL;
-    xfer.rx_buf = (unsigned long)byteBuffer;
-    xfer.len = byteBufferLength;						//is this in bytes?
-    xfer.delay_usecs = spi_delay;
-    xfer.speed_hz = spi_speed;	//50kHz for now -- need opamp buffer to increase
-    xfer.bits_per_word = 8;
-}
-
-float pi_spi_adc::readValue()
-{
-    return (this->*readValueFctn)();
-}
-
-float pi_spi_adc::readValues( float *dataBuffer, float *timeBuffer, int bufferLength )
-{
-    acquistionTimer->start();
-    (this->*readValuesFctn)( dataBuffer, timeBuffer, bufferLength );
-    acquistionTimer->stop();
-    return acquistionTimer->totalDuration();
-}
-
-float pi_spi_adc::mcp3201_readvalues( float *dataBuffer, float *timeBuffer, int bufferLength )
-{
-    acquistionTimer->start();
-    dataTimer->start();
-    for(int i = 0; i< bufferLength; i++ )
+    if (!bcm2835_init())
     {
-        dataBuffer[i] = this->mcp3201_readvalue();
-        if( timeBuffer )
-            timeBuffer[i] = dataTimer->currentDuration();
+      std::cout << "bcm2835_init failed. Are you running as root??\n";
+      return 1;
     }
-    acquistionTimer->stop();
-    return acquistionTimer->totalDuration();
+
+    if (!bcm2835_spi_begin())
+    {
+      std::cout << "bcm2835_spi_begin failed. Are you running as root??\n";
+      return 1;
+    }
+
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
+    //bcm2835_spi_setClockDivider(divider); // The default
+    //bcm2835_spi_set_speed_hz(1000000);
+    shift = 0;
+    this->setDivider();
+
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
+
+    std::cout << "initialised bcm2835 library version: " << bcm2835_version() << std::endl;
+    std::cout << "base clock speed: " << BCM2835_CORE_CLK_HZ/1000000.0 << " (MHz)" << std::endl;;
+
+
+    std::cout << "SPI clock speed: " << (1.0*BCM2835_CORE_CLK_HZ/divider)/1000000.0 << " (MHz)" << std::endl;
+
+    return 0;
 }
 
-float pi_spi_adc::mcp3201_readvalue()
+
+uint16_t pi_spi_adc::mcp3201_readRaw()
 {
-	uint16_t byteOne;
-	uint8_t byteTwo;
+    bcm2835_spi_transfern( spi_twoBytesBuffer, 2 );
 
-//	memset(&xfer, 0, sizeof(xfer));
-    int status = ioctl(spiID, SPI_IOC_MESSAGE(1), &xfer);
-
-	if( status < 0 )
-	{
-			//explain_ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
-			printf("error - status: %d\n", status);
-			//free(byteBuffer);
-			//free(blaBuffer);
-			return 0;
-	}
-
-	//printf("status: %d\n", status);
-	//printf("byteBuffer: %d\n", *byteBuffer);
-	byteTwo = byteBuffer[1] >> 1;
-	byteOne = byteBuffer[0] & 0b00011111;
+    byteTwo = spi_twoBytesBuffer[1] >> 1;
+	byteOne = spi_twoBytesBuffer[0] & 0b00011111;
 	byteOne <<= 7;
 
-	return byteOne + byteTwo;
+    return byteOne + byteTwo;
+}
+
+float pi_spi_adc::mcp3201_readRaws( uint16_t *dataBuffer, float *timeBuffer, int bufferLength )
+{
+    dataTimer->start();
+
+    acquistionTimer->start();
+    for(int i = 0; i < bufferLength; i++ )
+    {
+        bcm2835_spi_transfern( spi_twoBytesBuffer, 2 );
+        if( timeBuffer )
+            timeBuffer[i] = dataTimer->currentDuration();
+
+        byteTwo = spi_twoBytesBuffer[1] >> 1;
+    	byteOne = spi_twoBytesBuffer[0] & 0b00011111;
+    	byteOne <<= 7;
+        dataBuffer[i] = byteOne + byteTwo;
+    }
+    acquistionTimer->stop();
+
+    return acquistionTimer->totalDuration();
+}
+
+float pi_spi_adc::mcp3201_readValue()
+{
+    bcm2835_spi_transfern( spi_twoBytesBuffer, 2 );
+
+    byteTwo = spi_twoBytesBuffer[1] >> 1;
+	byteOne = spi_twoBytesBuffer[0] & 0b00011111;
+	byteOne <<= 7;
+
+    return conversion*(byteOne + byteTwo);
+}
+
+float pi_spi_adc::mcp3201_readValues( float *dataBuffer, float *timeBuffer, int bufferLength )
+{
+
+
+    acquistionTimer->start();
+    dataTimer->start();
+    for(int i = 0; i < bufferLength; i++ )
+    {
+        bcm2835_spi_transfern( spi_twoBytesBuffer, 2 );
+        if( timeBuffer )
+            timeBuffer[i] = dataTimer->currentDuration();
+
+        byteTwo = spi_twoBytesBuffer[1] >> 1;
+    	byteOne = spi_twoBytesBuffer[0] & 0b00011111;
+    	byteOne <<= 7;
+        dataBuffer[i] = (byteOne + byteTwo)*conversion;
+    }
+    acquistionTimer->stop();
+
+    return acquistionTimer->totalDuration();
+}
+
+void pi_spi_adc::setAcquisitionTime( uint8_t sh )    //marker between 1 and
+{
+    shift = sh;
+
+    this->setDivider();
+}
+
+void pi_spi_adc::setDivider()
+{
+    if( shift > 9 );
+        shift = 9;
+
+    if( shift == 9 )
+        divider = 0;
+    else
+        divider = 128 << shift;
+
+    bcm2835_spi_setClockDivider(divider);
+}
+
+void pi_spi_adc::increaseAcquitionTime()
+{
+    shift++;
+    this->setDivider();
+}
+
+void pi_spi_adc::decreaseAcquitionTime()
+{
+    shift--;
+    this->setDivider();
 }

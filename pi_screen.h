@@ -1,6 +1,8 @@
 #ifndef pi_screen_h
 #define pi_screen_h
 
+
+
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -11,6 +13,11 @@
 #include <cstdlib>  //rand
 #include <time.h>       /* time */
 
+enum{
+    kScreenModeGraph,
+    kScreenModeList,
+    kScreenModeDebug
+};
 
 class pi_screen     //could subclass screen to data_screen
 {
@@ -26,7 +33,16 @@ public:
 
     void clearScreen();     //empties the screen
     void prepareScreen();   //prepares screen --> calls
+
     void drawScreen();      //prints the actual *screen buffer to the console via cout
+    void dumpData();
+    void drawDebug();
+
+    void addDebug();
+
+    void setModeGraph();
+    void setModeList();
+    void changeMode();
 
     void prepareOverlay();      //fills *overlay Buffer
     void setXAxis( float mid, float halfrange );
@@ -44,9 +60,12 @@ public:
     void rndTestData( float start, float stop, int seed );
     void sinTestData( float start, float stop, float freq, int seed );
 
-    float   *getDataBuffer();
+    float   *getDataInputBuffer();
     int     getDataBufferLength();
     void    swapBuffer();
+
+    void    setNote( int index, std::string content );
+    void    clearNote( int index );
 
 
 private:
@@ -56,6 +75,10 @@ private:
     float   *dataInputBuffer;
     float 	*dataBuffer;     //1D data buffer
     int     numDataPoints;
+
+    char 	*debug;
+
+    int     screenMode = kScreenModeList;
 
     char    defaultValue;
     int     screenSizeX;
@@ -71,6 +94,8 @@ private:
     float   yRange2;
     float   x0;
     float   xRange2;
+
+    std::string notes[3];
 
     std::thread *screenThread;
     bool        running;
