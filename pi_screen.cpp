@@ -84,23 +84,27 @@ void pi_screen::screenLoop()
     while(running)
     {
         std::this_thread::sleep_for(timespan);  //sleep for 100ms
-        switch (screenMode)
+        if( redraw )
         {
-            case kScreenModeGraph:
-                this->prepareScreen();      //prepares "screen" buffer
-                this->clearScreen();        //clear terminal
-                this->drawScreen();         // draw screen buffer to terminal
-                break;
-            case kScreenModeList:
-                this->clearScreen();        //clear terminal
-                this->dumpData();           //simply print Data Buffer
-                break;
-            case kScreenModeDebug:
-                this->clearScreen();
-                this->drawDebug();
-                break;
-            default:
-                break;
+            redraw = false;     //something needs to set redraw to true again
+            switch (screenMode)
+            {
+                case kScreenModeGraph:
+                    this->prepareScreen();      //prepares "screen" buffer
+                    this->clearScreen();        //clear terminal
+                    this->drawScreen();         // draw screen buffer to terminal
+                    break;
+                case kScreenModeList:
+                    this->clearScreen();        //clear terminal
+                    this->dumpData();           //simply print Data Buffer
+                    break;
+                case kScreenModeDebug:
+                    this->clearScreen();
+                    this->drawDebug();
+                    break;
+                default:
+                    break;
+            }
         }
 
     }
@@ -164,16 +168,6 @@ void pi_screen::changeMode()
         screenMode = kScreenModeGraph;
 }
 
-
-//takes some arbitrary data and bins it into the data buffer.... maybe... (where to trigger)
-void pi_screen::binIntoDataBuffer( float *values, int numValues )
-{
-
-
-    memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
-}
-
-
 void pi_screen::rndTestData( float start, float stop, int seed )
 {
     float range = stop-start;
@@ -199,14 +193,14 @@ int pi_screen::getDataBufferLength()
 void pi_screen::swapBuffer()
 {
     memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
+    redraw = true;
 }
 
 void pi_screen::sinTestData( float start, float stop, float freq, int seed )
 {
     float range = stop-start;
     float mid = (stop+start)/2;
-    //auto now = std::chrono::steady_clock::now();
-    //auto ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
+
     std::srand(seed);
     float offset = (std::rand()/(float)RAND_MAX)*10;
 
@@ -215,7 +209,6 @@ void pi_screen::sinTestData( float start, float stop, float freq, int seed )
         dataInputBuffer[i] = std::sin( i*freq + offset)*range/2.0 + mid;
     }
     memcpy(dataBuffer, dataInputBuffer, numDataPoints*sizeof(float));
-
 }
 
 
@@ -233,7 +226,23 @@ void pi_screen::setXAxis( float mid, float halfrange )
     this->prepareOverlay();
 }
 
+void pi_screen::setNote( int index, std::string content )
+{
+    if( index >= 0 && index < 3 )
+    {
+        notes[index] = content;
+    }
+    this->prepareOverlay();
+}
 
+void pi_screen::clearNote( int index )
+{
+    if( index >= 0 && index < 3 )
+    {
+        notes[index] = "";
+    }
+    this->prepareOverlay();
+}
 
 void pi_screen::prepareOverlay()
 {
@@ -281,28 +290,14 @@ void pi_screen::prepareOverlay()
     for(int i = 0; i < 10; i++ )
     {
         //first line:
-        this->setOverlayPixel( i, (screenPaddingY-2), notes[0].at(i));
-        this->setOverlayPixel( i, (screenPaddingY-3), notes[1].at(i));
-        this->setOverlayPixel( i, (screenPaddingY-4), notes[2].at(i));
+        if( !notes[0].empty() && notes[0].size() > i )
+            this->setOverlayPixel( i, (screenPaddingY-2), notes[0].at(i));
+        if( !notes[1].empty() && notes[1].size() > i )
+            this->setOverlayPixel( i, (screenPaddingY-3), notes[1].at(i));
+        if( !notes[2].empty() && notes[2].size() > i )
+            this->setOverlayPixel( i, (screenPaddingY-4), notes[2].at(i));/**/
     }
-}
-
-void pi_screen::setNote( int index, std::string content )
-{
-    if( index >= 0 && index < 3 )
-    {
-        notes[i] = content;
-    }
-    this->prepareOverlay();
-}
-
-void pi_screen::clearNote( int index )
-{
-    if( index >= 0 && index < 3 )
-    {
-        notes[i] = "";
-    }
-    this->prepareOverlay();
+    redraw = true;
 }
 
 void pi_screen::drawOverlay()

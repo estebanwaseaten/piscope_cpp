@@ -26,7 +26,6 @@ void pi_controller::mainLoop()
     mainScreen->start();
     mainScreen->setModeGraph();
     mainScreen->setYAxis( 0, 1.2 );
-    mainScreen->setNote(0, "hvjdkshvfkd");
 
     int dataBufferLength = mainScreen->getDataBufferLength();
     float *myDataInput = mainScreen->getDataInputBuffer();
@@ -43,7 +42,7 @@ void pi_controller::mainLoop()
         mainScreen->swapBuffer();
         //std::cout << SPInterface->mcp3201_readvalue() << " - ";
         //mainScreen->sinTestData( -1, 1, 0.05, counter );
-
+        mainScreen->setNote( 0, std::to_string(daqduration) );
         //std::cout << daqduration << std::endl;
         counter++;
     }
@@ -59,6 +58,7 @@ void pi_controller::mainLoop()
 
 void pi_controller::keyboardInput( char cmd )
 {
+    std::string temp;
     switch( cmd )
     {
         case 'q':
@@ -68,13 +68,27 @@ void pi_controller::keyboardInput( char cmd )
             if( mainScreen )
                 mainScreen->changeMode();
             break;
+        case 'T':
+
+            break;
+        case 't':
+
+            break;
         case 'A':
             if( SPInterface )
-                SPInterface->decreaseAcquitionTime();
+            {
+                SPInterface->decreaseAcquisitionTime();
+                temp = "adiv:" + std::to_string(SPInterface->getDivider());//SPInterface->getDivider());
+                mainScreen->setNote( 1, temp);
+            }
             break;
         case 'D':
             if( SPInterface )
-                SPInterface->increaseAcquitionTime();
+            {
+                SPInterface->increaseAcquisitionTime();
+                temp = "ddiv:" + std::to_string(SPInterface->getDivider());
+                mainScreen->setNote( 1, temp );
+            }
             break;
         default:
             std::cout << "\33[2K\r";

@@ -33,7 +33,7 @@ int main( void )
 
     pi_controller *mainController = new pi_controller();
 
-    std::chrono::seconds timespan(3);
+    std::chrono::seconds timespan(1);
     std::this_thread::sleep_for(timespan);
 
     mainController->mainLoop();

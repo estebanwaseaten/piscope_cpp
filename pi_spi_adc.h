@@ -30,10 +30,12 @@ public:
     uint16_t  mcp3201_readRaw();
     float     mcp3201_readRaws( uint16_t *dataBuffer, float *timeBuffer, int bufferLength );
 
-    void   setAcquisitionTime( uint8_t sh );
-    void   setDivider();
-    void   increaseAcquitionTime();
-    void   decreaseAcquitionTime();
+    void   setAcquisitionTime( uint8_t i );
+    void        setDivider();
+    uint16_t    getDivider();
+    uint8_t     getDividerIndex();
+    void   increaseAcquisitionTime();
+    void   decreaseAcquisitionTime();
 
     float   mcp3201_readValue();
     float   mcp3201_readValues( float *dataBuffer, float *timeBuffer, int bufferLength );
@@ -49,8 +51,9 @@ private:
 
     //SPI setup parameters
     //float   divider = BCM2835_SPI_CLOCK_DIVIDER_128;
-    uint8_t     shift = 0;
-    int         divider = 128;
+    uint8_t     dividerIndex;
+    uint16_t    dividers[10];
+
     float       conversion = 3.3/4096;
 
     char	    *spi_twoBytesBuffer;
