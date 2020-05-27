@@ -7,8 +7,6 @@ pi_spi_adc::pi_spi_adc()
     spi_twoBytesBuffer = new char(sizeof(uint16_t));  //yeah, we allocate 2 bytes
     dataTimer = new pi_timer();
     acquistionTimer = new pi_timer();
-
-
 }
 
 pi_spi_adc::~pi_spi_adc()
@@ -27,43 +25,33 @@ int pi_spi_adc::setupSPI()
       std::cout << "bcm2835_init failed. Are you running as root??\n";
       return 1;
     }
-
     if (!bcm2835_spi_begin())
     {
       std::cout << "bcm2835_spi_begin failed. Are you running as root??\n";
       return 1;
     }
-
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    //bcm2835_spi_setClockDivider(divider); // The default
-    //bcm2835_spi_set_speed_hz(1000000);
-    dividers[0] = BCM2835_SPI_CLOCK_DIVIDER_128;
-    dividers[1] = BCM2835_SPI_CLOCK_DIVIDER_256;
-    dividers[2] = BCM2835_SPI_CLOCK_DIVIDER_512;
-    dividers[3] = BCM2835_SPI_CLOCK_DIVIDER_1024;
-    dividers[4] = BCM2835_SPI_CLOCK_DIVIDER_2048;
-    dividers[5] = BCM2835_SPI_CLOCK_DIVIDER_4096;
-    dividers[6] = BCM2835_SPI_CLOCK_DIVIDER_8192;
-    dividers[7] = BCM2835_SPI_CLOCK_DIVIDER_16384;
-    dividers[8] = BCM2835_SPI_CLOCK_DIVIDER_32768;
-    dividers[9] = BCM2835_SPI_CLOCK_DIVIDER_65536;
-
-    setAcquisitionTime(3);
-    //bcm2835_spi_setClockDivider(128);
-
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 
+    //initialize divider array
+    int firsti = 4;
+    int div = std::pow(2, firsti);
+    for( int i = firsti; i < (firsti+numDividers-1); i++ )
+    {
+        dividers[i-firsti] = div;
+        div *=2;
+    }
+    dividers[numDividers-1] = BCM2835_SPI_CLOCK_DIVIDER_65536;
+    // set parameter via wrapper
+    setAcquisitionTime(3);
+
     std::cout << "initialised bcm2835 library version: " << bcm2835_version() << std::endl;
     std::cout << "base clock speed: " << BCM2835_CORE_CLK_HZ/1000000.0 << " (MHz)" << std::endl;;
-
-
     std::cout << "SPI clock speed: " << (1.0*BCM2835_CORE_CLK_HZ/dividers[dividerIndex])/1000000.0 << " (MHz)" << std::endl;
-
     return 0;
 }
-
 
 uint16_t pi_spi_adc::mcp3201_readRaw()
 {
@@ -162,8 +150,8 @@ void pi_spi_adc::decreaseAcquisitionTime()
 
 void pi_spi_adc::setDivider()
 {
-    if( dividerIndex > 9 )
-        dividerIndex = 9;
+    if( dividerIndex > numDividers-1 )
+        dividerIndex = numDividers-1;
 
 //    std::cout << "i: " << dividerIndex << " div: " << dividers[dividerIndex];
 

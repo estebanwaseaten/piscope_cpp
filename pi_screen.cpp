@@ -22,7 +22,6 @@ pi_screen::pi_screen( int scrSizeX, int scrSizeY, int scrPadX, int scrPadY )
 void pi_screen::initScreen()
 {
     screen = new char[totalPixelCount + screenSizeY + 1];   // add one column for linefeed chars + 1 for c termination
-    debug = new char[totalPixelCount + screenSizeY + 1];
     blankScreen = new char[totalPixelCount + screenSizeY + 1];
     memset(blankScreen, ' ', totalPixelCount + screenSizeY + 1);
     for( int i = 0; i < screenSizeY; i++ )
@@ -32,7 +31,6 @@ void pi_screen::initScreen()
     blankScreen[totalPixelCount + screenSizeY] ='\0'; //termination char for c string
 
     memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1 );
-    memcpy(debug, blankScreen, totalPixelCount + screenSizeY + 1 );
 
     overlay = new char[totalPixelCount];
 
@@ -98,10 +96,6 @@ void pi_screen::screenLoop()
                     this->clearScreen();        //clear terminal
                     this->dumpData();           //simply print Data Buffer
                     break;
-                case kScreenModeDebug:
-                    this->clearScreen();
-                    this->drawDebug();
-                    break;
                 default:
                     break;
             }
@@ -110,12 +104,6 @@ void pi_screen::screenLoop()
     }
 }
 
-void pi_screen::addDebug()
-{
-    memcpy(screen, blankScreen, totalPixelCount + screenSizeY + 1); //first clear debug
-
-
-}
 
 void pi_screen::prepareScreen() //set screen to all blank, then draw data from *dataBuffer, then overlay form *overlay
 {
@@ -130,10 +118,6 @@ void pi_screen::drawScreen()        //line by line drawing prefers consecutive c
     printf( "%s", screen );
 }
 
-void pi_screen::drawDebug()        //line by line drawing prefers consecutive chars in x directions
-{
-    printf( "%s", debug );
-}
 
 void pi_screen::dumpData()
 {

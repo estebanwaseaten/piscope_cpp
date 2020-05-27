@@ -77,9 +77,9 @@ private:
 
     bool    redraw = true;
 
-    char 	*debug;
+    //char 	*debug;
 
-    int     screenMode = kScreenModeList;
+    int     screenMode = kScreenModeGraph;
 
     char    defaultValue;
     int     screenSizeX;

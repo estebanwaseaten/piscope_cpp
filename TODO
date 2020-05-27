@@ -1,0 +1,14 @@
+OVERVIEW
+
+the goal:
+- "cheap" 1 to 2 channel oscilloscope based on raspberry pi (1 for now - porting to later versions at some point)
+- as fast as possible readout (depends on ADC chip - 50-100kHz should be doable)
+- data display via network (console & some kind of websockets server)
+- usual oscilloscope features:
+    - SOFTWARE: trigger, timebase select, save data?, average?
+    - HARDWARE: input buffer, attenuators and amplifiers (6 ranges --> how to detect the ranges? GPIO?), select coupling (MOhm AC/DC should be enough)
+
+
+
+external resources:
+- "driver" bcm2835.h library (by Mike McCauley: http://www.airspayce.com/mikem/bcm2835) for direct register access and fast SPI comunication

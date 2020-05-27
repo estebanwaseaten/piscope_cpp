@@ -1,8 +1,20 @@
-screen buffer can now be drawn by single command du to c-string structure:
+DAQ seems to work up to:
+div = 128:  2GHz --> 75kHz DAQ
+div = 64:   4GHz --> 112kHz (already artefacts visible)
+div = 32:   8HGz --> 123kHz (Intensities are off a lot)
+div = 16:   16Ghz --> no signal detected. Could be useful if chip is supplied with 5V, which increases its max clock rate.
+
+changed data acquistion to bcm2835.h library (by Mike McCauley: http://www.airspayce.com/mikem/bcm2835)
+optimisiation --> optimise data acquisition for the mcp3201 IC: transfer many double-bytes of data at once. each acquisition needs a pulldown of CS pin (which could also set the DAQ rate).
+
+
+screen buffer can now be drawn by single command due to c-string structure:
 xxxxx\n
 xxxxx\n
 xxxxx\n
 xxxxx\n
 \0
 
-add dataInputBuffer to pi_screen to reduce syncing problem (slowly fill dataInputBuffer and then copy it into dataBuffer in one step)
+pi_screen:
+add dataInputBuffer to pi_screen to reduce syncing problem (slowly fill dataInputBuffer and then memcopy it into dataBuffer in one step).
+decided to use fixed size data Buffers in (according to the amount of pixels to be displayed). They should be binned to the "correct" time axis on the long run.
